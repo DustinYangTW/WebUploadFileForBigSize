@@ -1,0 +1,88 @@
+﻿@{
+    ViewData["Title"] = "Create";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h1>Create</h1>
+
+
+@* <form id="fileUploadForm" asp-action="index" method="POST" enctype="multipart/form-data">
+    <input type="file" id="fileInput" name="photo">
+    <button type="button" id="splitAndUploadButton">切割并上传</button>
+</form> *@
+<form id="fileUploadForm" asp-action="index" method="POST" enctype="multipart/form-data">
+    <input type="file" id="fileInput" name="file" />
+    <button type="button" id="uploadButton">Upload</button>
+</form>
+
+
+
+<script>
+    document.getElementById("uploadButton").addEventListener("click", async () => {
+        const fileInput = document.getElementById("fileInput");
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert("請選擇檔案");
+            return;
+        }
+        var startTime = performance.now();
+
+        // 1. 上傳切割後的文件塊
+        const chunkSize = 1024 * 1024; // 設定文件塊的大小(目前是1MB)
+        const totalChunks = Math.ceil(file.size / chunkSize);
+
+        for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber++) {
+            const start = chunkNumber * chunkSize;
+            const end = Math.min(start + chunkSize, file.size);
+            const chunk = file.slice(start, end);
+            const blobName = `${file.name.split('.')[0]}_${chunkNumber}`; // 指定blob名字
+            const formData = new FormData();
+            formData.append("file", chunk, blobName);
+
+            try {
+                const response = await fetch(`@Url.Action("UploadFile","Home")`, {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    // 如果HTTP回應狀態碼不是200 OK，表示發生錯誤
+                    throw new Error(`請求失敗: ${response.status} - ${response.statusText}`);
+                }
+            } catch (error) {
+                console.error("發生錯誤:", error);
+                return;
+            }
+        }
+
+        try {
+            // 2. 合併文件塊
+            var url = '@Url.Action("MergeFiles","Home")' + `?fileName=${file.name}`
+            const response = await fetch(url, {
+                method: "POST",
+            });
+
+            if (!response.ok) {
+                // 如果HTTP回應狀態碼不是200 OK，表示發生錯誤
+                throw new Error(`請求失敗: ${response.status} - ${response.statusText}`);
+            }
+        } catch (error) {
+            console.error("發生錯誤:", error);
+            return;
+        }
+
+
+        // 結束計時
+        var endTime = performance.now();
+        // 計算執行時間
+        var executionTime = (endTime - startTime) / 1000;
+
+        alert(`上傳成功~執行時間為 : ${executionTime}秒`);
+    });
+
+
+</script>
+
+<br />
+@ViewData["Msg"]
